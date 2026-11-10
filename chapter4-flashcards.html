@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 4 Flashcards</title>
+<style>
+  :root {
+    --navy: #003058; --navy-dark: #001f3a; --bg: #f2f6fa; --card: #ffffff;
+    --text: #1d2733; --muted: #5a6675; --border: #c9d4df;
+    --green: #2e7d32; --amber: #8a5d00; --red: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: Montserrat, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.5; }
+  .app { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.25rem; color: var(--navy); margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: .9rem; margin: 0 0 14px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; font-size: .85rem; }
+  .pill { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; }
+  .pill strong { color: var(--navy); }
+  .bar { height: 10px; background: #dbe3eb; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--green); transition: width .3s; }
+  .scene { perspective: 1200px; }
+  .card { position: relative; width: 100%; min-height: 260px; border: 0; padding: 0; background: none;
+    cursor: pointer; transform-style: preserve-3d; transition: transform .45s; font: inherit; color: inherit; text-align: center; }
+  .card.flipped { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 28px 24px 36px; border-radius: 10px; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .front { background: var(--card); border: 2px solid var(--navy); }
+  .back { background: var(--navy); color: #fff; transform: rotateY(180deg); }
+  .label { position: absolute; top: 10px; left: 14px; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+  .hint { position: absolute; bottom: 10px; font-size: .78rem; opacity: .7; }
+  .text { font-size: 1.12rem; }
+  .card:focus-visible { outline: 3px solid #f0b400; outline-offset: 4px; border-radius: 10px; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+  .actions button, .tools button { font: inherit; font-weight: 600; border-radius: 6px; padding: 12px 8px; cursor: pointer; border: 2px solid; }
+  .actions button:disabled { opacity: .4; cursor: not-allowed; }
+  .notyet { background: #fff; color: var(--red); border-color: var(--red); }
+  .revisit { background: #fff; color: var(--amber); border-color: var(--amber); }
+  .gotit { background: var(--green); color: #fff; border-color: var(--green); }
+  .actions button:not(:disabled):hover { filter: brightness(.93); }
+  .actions small { display: block; font-weight: 400; font-size: .72rem; }
+  .tip { text-align: center; color: var(--muted); font-size: .82rem; margin: 10px 0 0; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .tools button { background: #fff; color: var(--navy); border-color: var(--navy); padding: 8px 14px; font-size: .85rem; }
+  .done { display: none; background: var(--card); border: 2px solid var(--green); border-radius: 10px; padding: 32px 24px; text-align: center; }
+  .done h2 { color: var(--green); margin: 0 0 8px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (max-width: 480px) { .text { font-size: 1rem; } .card { min-height: 300px; } }
+  @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>Chapter 4 Flashcards</h1>
+  <p class="sub">Click the card (or press Space) to flip it, then rate how well you knew it.</p>
+
+  <div class="stats" aria-live="polite">
+    <span class="pill">Mastered: <strong id="sMastered">0</strong> / <strong id="sTotal">0</strong></span>
+    <span class="pill">Left in this round: <strong id="sLeft">0</strong></span>
+  </div>
+  <div class="bar" role="progressbar" aria-label="Cards mastered" aria-valuemin="0" id="bar"><span id="barFill"></span></div>
+
+  <div id="study">
+    <div class="scene">
+      <button class="card" id="card" aria-describedby="cardHint">
+        <span class="face front"><span class="label">Question</span><span class="text" id="front"></span><span class="hint">Click to flip</span></span>
+        <span class="face back" aria-hidden="true"><span class="label">Answer</span><span class="text" id="back"></span><span class="hint">Click to flip back</span></span>
+      </button>
+    </div>
+    <p class="sr" id="cardHint">Press Enter or Space to flip the card.</p>
+    <div class="actions">
+      <button class="notyet" id="bNot" disabled>Not yet<small>See it again soon</small></button>
+      <button class="revisit" id="bRev" disabled>Revisit<small>See it again later</small></button>
+      <button class="gotit" id="bGot" disabled>Got it<small>Don't show again</small></button>
+    </div>
+    <p class="tip">Flip the card to unlock the rating buttons. Keyboard: 1 = Not yet, 2 = Revisit, 3 = Got it.</p>
+  </div>
+
+  <div class="done" id="done" role="status">
+    <h2>You've mastered every card!</h2>
+    <p>Nice work. Reset to study the full set again.</p>
+  </div>
+
+  <div class="tools">
+    <button id="bShuffle">Shuffle remaining</button>
+    <button id="bReset">Start over</button>
+  </div>
+  <p class="sr" id="announce" aria-live="polite"></p>
+</main>
+
+<script>
+const CARDS = [
+ [
+  "What are the five major job-related health and safety hazards for dental office employees?",
+  "They are exposure to particulate matter, mercury, toxic chemical effects, airborne contaminants, and biological contaminants."
+ ],
+ [
+  "What primary measures reduce employee exposure to particulate matter generated during dental procedures?",
+  "Using appropriate personal protective equipment (PPE) and exhaust ventilation."
+ ],
+ [
+  "What are the primary pathways through which chemicals enter the body?",
+  "Chemicals enter through inhalation, direct skin or eye contact, skin absorption, ingestion, and direct invasion through broken skin."
+ ],
+ [
+  "How is acute chemical toxicity distinguished from chronic chemical toxicity?",
+  "Acute toxicity results from short-term, high-level exposure, whereas chronic toxicity results from repeated or long-term low-level exposure."
+ ],
+ [
+  "What storage condition is essential for mercury containers in the dental office?",
+  "Mercury must be stored in unbreakable, tightly sealed containers away from heat sources."
+ ],
+ [
+  "Why should amalgam capsules be reassembled immediately after dispensing the amalgam mass?",
+  "Reassembling the capsule minimizes the release of residual mercury vapor into the room air."
+ ],
+ [
+  "What cleaning method should be strictly avoided when managing spilled mercury on carpets?",
+  "Vacuuming should be avoided because it aerosolizes mercury into the surrounding air."
+ ],
+ [
+  "According to dental mercury safety protocols, how often should carpeted floor coverings be replaced if contaminated with mercury?",
+  "Carpeted floor coverings should be replaced every 5 years to eliminate trapped mercury deposits."
+ ],
+ [
+  "What is the least toxic form of mercury, which is present in dental amalgam?",
+  "Metallic mercury is the least toxic form and is absorbed primarily through the lungs rather than the gastrointestinal tract."
+ ],
+ [
+  "Into what highly toxic form do aquatic bacteria convert elemental mercury released into the environment?",
+  "Aquatic bacteria transform elemental mercury into methylmercury."
+ ],
+ [
+  "What is the average half-life for mercury elimination from the human body?",
+  "The average half-life for eliminating mercury from the human body is 55 days."
+ ],
+ [
+  "What is the OSHA legal airborne permissible exposure limit (PEL) for mercury over an 8-hour work shift?",
+  "The legal airborne permissible exposure limit is 0.1 mg/m³ averaged over an 8-hour shift."
+ ],
+ [
+  "What is the estimated incidence of mercury hypersensitivity in the general population?",
+  "Mercury hypersensitivity affects less than 1 in 100 million persons."
+ ],
+ [
+  "How should items contaminated with mercury be disposed of according to dental waste protocols?",
+  "They must be sealed in airtight bags and disposed of according to hazardous waste regulations rather than placed in medical waste containers."
+ ],
+ [
+  "What international treaty signed by 148 parties aims to reduce worldwide mercury usage?",
+  "The Minamata Convention on Mercury."
+ ],
+ [
+  "What chemical characteristic classifies a waste product as ignitable?",
+  "A waste product is ignitable if it is flammable or combustible."
+ ],
+ [
+  "Under what condition is a waste material classified as corrosive?",
+  "A waste material is classified as corrosive if it is highly acidic or highly basic."
+ ],
+ [
+  "What defines a reactive hazardous waste material?",
+  "A reactive hazardous waste material is chemical waste that is unstable or explosive."
+ ],
+ [
+  "Which toxic heavy metals classify a chemical waste product as hazardous?",
+  "Metals including arsenic, barium, chromium, mercury, lead, and silver classify waste as hazardous."
+ ],
+ [
+  "What is the main purpose of the OSHA Hazard Communication Standard in a dental practice?",
+  "It ensures that employees are informed about chemical hazards in the workplace and trained in safe handling procedures."
+ ],
+ [
+  "What five main components make up a compliant OSHA Hazard Communication Program?",
+  "A written program, chemical inventory, Safety Data Sheets (SDSs), chemical container labeling, and employee training."
+ ],
+ [
+  "What primary document provides detailed safety, handling, and toxicological information for every chemical product in a dental office?",
+  "The Safety Data Sheet (SDS)."
+ ],
+ [
+  "Under the OSHA Hazard Communication Standard, who is responsible for providing Safety Data Sheets for dental chemicals?",
+  "The chemical manufacturer or distributor."
+ ],
+ [
+  "What organization's system uses a color-coded diamond symbol to indicate health, flammability, and reactivity hazards on chemical containers?",
+  "The National Fire Protection Association (NFPA)."
+ ],
+ [
+  "What regulation requires dental laboratories to follow the exact same infection control standards as dental offices?",
+  "The OSHA Bloodborne Pathogens Standard."
+ ],
+ [
+  "Which agency provides infection control guidelines specifically tailored for healthcare and dental settings?",
+  "The Centers for Disease Control and Prevention (CDC)."
+ ],
+ [
+  "What is the recommended method to disinfect extracted teeth containing amalgam restorations prior to recycling?",
+  "Extracted teeth containing amalgam should be disinfected using bleach before being recycled with chairside trap wastes."
+ ],
+ [
+  "Why must high-vacuum suction be utilized during the removal or polishing of amalgam restorations?",
+  "High-vacuum suction captures airborne mercury vapors and particulate debris generated during grinding."
+ ],
+ [
+  "How should scrap amalgam collected from chairside traps and vacuum pump filters be managed before recycling?",
+  "It must be salvaged, stored in tightly closed containers, and recycled in accordance with applicable laws."
+ ],
+ [
+  "What type of gloves can be penetrated by uncured HEMA (hydroxyethyl methacrylate) monomer in relatively short exposure times?",
+  "Standard rubber or latex gloves can be penetrated by HEMA in 60 to 90 seconds."
+ ],
+ [
+  "What primary action should be taken if a strong acid or chemical splashes into an employee's eye?",
+  "Flush the eye immediately at an emergency eyewash station for at least 15 minutes."
+ ],
+ [
+  "What is the primary function of an emergency eyewash station in a dental workplace?",
+  "It provides immediate, high-volume water irrigation to flush harmful chemicals or debris from the eyes."
+ ],
+ [
+  "What precaution should dental staff take regarding work clothing before leaving the office at the end of the shift?",
+  "Staff must remove professional work attire before leaving the workplace to avoid carrying contaminants home."
+ ],
+ [
+  "How should empty chemical containers be handled in a dental facility?",
+  "They should never be reused for other purposes and must be disposed of according to manufacturer instructions and hazardous waste regulations."
+ ],
+ [
+  "Concept: Acute Chemical Toxicity",
+  "Definition: Adverse health effects resulting from high-level exposure to a chemical over a very short period, often causing immediate symptoms like dizziness or chemical burns."
+ ],
+ [
+  "Concept: Chronic Chemical Toxicity",
+  "Definition: Adverse health effects resulting from repeated or continuous low-level exposure to a toxic substance over an extended period of months or years."
+ ],
+ [
+  "What type of ventilation system is required in areas where chemical vapors or particulates are routinely generated?",
+  "Local exhaust ventilation systems."
+ ],
+ [
+  "What is the purpose of the ADA Top Ten Initiatives for dental practices?",
+  "To provide actionable guidance for incorporating eco-friendly and sustainable practices into dental office operations."
+ ],
+ [
+  "What is the role of the dental assistant in supporting eco-conscious green practices when ordering supplies?",
+  "Selecting cost-effective, environmentally friendly product options and minimizing bulk packaging waste."
+ ],
+ [
+  "How does primary contact with metallic mercury usually harm human body tissues?",
+  "Metallic mercury is poorly absorbed through skin or ingestion, but its vapor is readily absorbed through the lungs upon inhalation."
+ ],
+ [
+  "What chemical property causes a substance to be categorized as a reactive hazardous waste?",
+  "An instability that causes the substance to undergo violent reactions, explode, or produce toxic fumes when mixed with air or water."
+ ],
+ [
+  "What information must be placed on secondary chemical containers when transferring stock chemicals under OSHA rules?",
+  "The product identity, chemical name, and appropriate hazard warnings matching the original container."
+ ],
+ [
+  "Why are eating and drinking prohibited in dental treatment and laboratory areas?",
+  "Eating or drinking in clinical areas creates a high risk of accidental chemical and biological ingestion."
+ ],
+ [
+  "Which regulatory agency enforces legal workplace limits for airborne chemical exposures in the United States?",
+  "The Occupational Safety and Health Administration (OSHA)."
+ ],
+ [
+  "How does installing an amalgam separator protect the public water supply?",
+  "It captures fine amalgam particulate waste from dental unit wastewater before it discharges into the municipal sewer system."
+ ],
+ [
+  "When must an employer provide safety training regarding a newly introduced hazardous chemical in the office?",
+  "Employees must receive safety training on the new chemical prior to its initial use in the workplace."
+ ],
+ [
+  "How does a written hazard communication program benefit a dental office?",
+  "It provides a comprehensive operational framework for chemical inventory, SDS access, container labeling, and staff training."
+ ],
+ [
+  "What is a major biological hazard associated with high-speed aerosol-generating dental handpieces?",
+  "Transmission of airborne infectious microorganisms suspended within blood and saliva aerosols."
+ ],
+ [
+  "What eye protection features are essential for safeguarding dental staff from chemical splashes and debris?",
+  "Protective eyewear equipped with top and side shields or complete face shields."
+ ],
+ [
+  "Why are pre-capsulated amalgam alloy and mercury products preferred over bulk mercury handling?",
+  "Pre-capsulated systems eliminate manual proportioning and significantly decrease the risk of mercury spills and vapor release."
+ ],
+ [
+  "How should a minor acid spill be safely neutralized and cleaned up in a dental workplace?",
+  "Neutralize the acid with a basic substance such as sodium bicarbonate (baking soda) prior to absorbing and wiping up the residue."
+ ],
+ [
+  "What hazard category applies to dental materials that ignite easily at low flash points?",
+  "Ignitable (or flammable) materials."
+ ],
+ [
+  "Which agency mandates a written Bloodborne Pathogens Standard plan in dental facilities?",
+  "The Occupational Safety and Health Administration (OSHA)."
+ ],
+ [
+  "Why must expiration dates on dental biomaterials and chemical supplies be routinely monitored?",
+  "Expired materials may undergo chemical degradation, lose clinical efficacy, or generate unexpected adverse chemical reactions."
+ ],
+ [
+  "What action should be taken with uncured resin waste containing light-activated monomers before disposal?",
+  "Uncured resins should be exposed to light-curing units to convert them into an inert, solid polymer before disposal."
+ ],
+ [
+  "What is the principal dermatological risk associated with repeated direct skin exposure to uncured dental resin monomers?",
+  "Repeated exposure can lead to contact dermatitis and permanent allergic skin sensitization."
+ ]
+];
+const KEY = "ut-ch4-flashcards-v1";
+
+let mastered = new Set();
+let queue = [];
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify({ mastered: [...mastered], queue })); } catch (e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if (d && Array.isArray(d.mastered) && Array.isArray(d.queue)) {
+      mastered = new Set(d.mastered.filter(i => i < CARDS.length));
+      queue = d.queue.filter(i => i < CARDS.length && !mastered.has(i));
+      // add any cards that are neither mastered nor queued
+      CARDS.forEach((_, i) => { if (!mastered.has(i) && !queue.includes(i)) queue.push(i); });
+      return;
+    }
+  } catch (e) {}
+  fresh();
+}
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function fresh() { mastered = new Set(); queue = shuffle(CARDS.map((_, i) => i)); }
+
+const $ = id => document.getElementById(id);
+const card = $("card"), rateBtns = [$("bNot"), $("bRev"), $("bGot")];
+
+function render() {
+  const total = CARDS.length, m = mastered.size;
+  $("sMastered").textContent = m; $("sTotal").textContent = total; $("sLeft").textContent = queue.length;
+  $("barFill").style.width = (m / total * 100) + "%";
+  $("bar").setAttribute("aria-valuemax", total); $("bar").setAttribute("aria-valuenow", m);
+  card.classList.remove("flipped");
+  card.querySelector(".front").removeAttribute("aria-hidden");
+  card.querySelector(".back").setAttribute("aria-hidden", "true");
+  rateBtns.forEach(b => b.disabled = true);
+  if (!queue.length) { $("study").style.display = "none"; $("done").style.display = "block"; return; }
+  $("study").style.display = ""; $("done").style.display = "none";
+  const c = CARDS[queue[0]];
+  $("front").textContent = c[0]; $("back").textContent = c[1];
+  card.setAttribute("aria-label", "Question: " + c[0] + ". Press to show the answer.");
+}
+function flip() {
+  if (!queue.length) return;
+  const f = card.classList.toggle("flipped");
+  card.querySelector(".front").setAttribute("aria-hidden", f ? "true" : "false");
+  card.querySelector(".back").setAttribute("aria-hidden", f ? "false" : "true");
+  card.setAttribute("aria-label", f ? "Answer: " + CARDS[queue[0]][1] + ". Press to show the question." : "Question: " + CARDS[queue[0]][0] + ". Press to show the answer.");
+  if (f) rateBtns.forEach(b => b.disabled = false);
+}
+function rate(kind) {
+  if (!queue.length || !card.classList.contains("flipped")) return;
+  const id = queue.shift();
+  if (kind === "got") { mastered.add(id); $("announce").textContent = "Marked as mastered."; }
+  else if (kind === "not") { queue.splice(Math.min(3, queue.length), 0, id); $("announce").textContent = "This card will come back in a few cards."; }
+  else { queue.push(id); $("announce").textContent = "This card will come back at the end of the round."; }
+  save(); render(); card.focus();
+}
+
+card.addEventListener("click", flip);
+$("bNot").addEventListener("click", () => rate("not"));
+$("bRev").addEventListener("click", () => rate("rev"));
+$("bGot").addEventListener("click", () => rate("got"));
+$("bShuffle").addEventListener("click", () => { shuffle(queue); save(); render(); $("announce").textContent = "Remaining cards shuffled."; });
+$("bReset").addEventListener("click", () => { fresh(); save(); render(); $("announce").textContent = "Progress reset. All cards are back in the deck."; });
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "BUTTON" && e.target !== card && (e.key === " " || e.key === "Enter")) return;
+  if (e.key === "1") rate("not"); else if (e.key === "2") rate("rev"); else if (e.key === "3") rate("got");
+});
+
+load(); render();
+</script>
+</body>
+</html>
