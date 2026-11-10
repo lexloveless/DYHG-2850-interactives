@@ -19,6 +19,8 @@
   .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; font-size: .85rem; }
   .pill { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; }
   .pill strong { color: var(--navy); }
+  .pill-not { border-color: var(--red); } .pill-not strong { color: var(--red); }
+  .pill-rev { border-color: var(--amber); } .pill-rev strong { color: var(--amber); }
   .bar { height: 10px; background: #dbe3eb; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
   .bar > span { display: block; height: 100%; width: 0; background: var(--green); transition: width .3s; }
   .scene { perspective: 1200px; }
@@ -59,6 +61,8 @@
 
   <div class="stats" aria-live="polite">
     <span class="pill">Mastered: <strong id="sMastered">0</strong> / <strong id="sTotal">0</strong></span>
+    <span class="pill pill-not">Not yet: <strong id="sNot">0</strong></span>
+    <span class="pill pill-rev">Revisit: <strong id="sRev">0</strong></span>
     <span class="pill">Left in this round: <strong id="sLeft">0</strong></span>
   </div>
   <div class="bar" role="progressbar" aria-label="Cards mastered" aria-valuemin="0" id="bar"><span id="barFill"></span></div>
@@ -322,9 +326,10 @@ const KEY = "ut-ch4-flashcards-v1";
 
 let mastered = new Set();
 let queue = [];
+let status = {}; // card id -> "not" | "rev"
 
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify({ mastered: [...mastered], queue })); } catch (e) {}
+  try { localStorage.setItem(KEY, JSON.stringify({ mastered: [...mastered], queue, status })); } catch (e) {}
 }
 function load() {
   try {
@@ -332,6 +337,8 @@ function load() {
     if (d && Array.isArray(d.mastered) && Array.isArray(d.queue)) {
       mastered = new Set(d.mastered.filter(i => i < CARDS.length));
       queue = d.queue.filter(i => i < CARDS.length && !mastered.has(i));
+      status = {};
+      if (d.status) for (const k in d.status) if (queue.includes(+k) && (d.status[k] === "not" || d.status[k] === "rev")) status[k] = d.status[k];
       // add any cards that are neither mastered nor queued
       CARDS.forEach((_, i) => { if (!mastered.has(i) && !queue.includes(i)) queue.push(i); });
       return;
@@ -343,7 +350,7 @@ function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
-function fresh() { mastered = new Set(); queue = shuffle(CARDS.map((_, i) => i)); }
+function fresh() { mastered = new Set(); status = {}; queue = shuffle(CARDS.map((_, i) => i)); }
 
 const $ = id => document.getElementById(id);
 const card = $("card"), rateBtns = [$("bNot"), $("bRev"), $("bGot")];
@@ -351,6 +358,9 @@ const card = $("card"), rateBtns = [$("bNot"), $("bRev"), $("bGot")];
 function render() {
   const total = CARDS.length, m = mastered.size;
   $("sMastered").textContent = m; $("sTotal").textContent = total; $("sLeft").textContent = queue.length;
+  const vals = Object.values(status);
+  $("sNot").textContent = vals.filter(v => v === "not").length;
+  $("sRev").textContent = vals.filter(v => v === "rev").length;
   $("barFill").style.width = (m / total * 100) + "%";
   $("bar").setAttribute("aria-valuemax", total); $("bar").setAttribute("aria-valuenow", m);
   card.classList.remove("flipped");
@@ -374,9 +384,9 @@ function flip() {
 function rate(kind) {
   if (!queue.length || !card.classList.contains("flipped")) return;
   const id = queue.shift();
-  if (kind === "got") { mastered.add(id); $("announce").textContent = "Marked as mastered."; }
-  else if (kind === "not") { queue.splice(Math.min(3, queue.length), 0, id); $("announce").textContent = "This card will come back in a few cards."; }
-  else { queue.push(id); $("announce").textContent = "This card will come back at the end of the round."; }
+  if (kind === "got") { mastered.add(id); delete status[id]; $("announce").textContent = "Marked as mastered."; }
+  else if (kind === "not") { status[id] = "not"; queue.splice(Math.min(3, queue.length), 0, id); $("announce").textContent = "This card will come back in a few cards."; }
+  else { status[id] = "rev"; queue.push(id); $("announce").textContent = "This card will come back at the end of the round."; }
   save(); render(); card.focus();
 }
 
